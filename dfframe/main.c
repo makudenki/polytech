@@ -32,12 +32,13 @@ int main (int argc, char **argv)
     // DirectFB の初期化
     init(&argc, &argv);
 
-    // 画面クリア
-    fillScreen(0xff, 0xff, 0xff, 0xff);
+    // 画像の読み込み
+    readImage(0, "pict.png");
+    reanderImage(0, false);
     flip();
 
-    // 裏面もクリア
-    fillScreen(0xff, 0xff, 0xff, 0xff);
+    // 裏面にも読み込み
+    reanderImage(0, false);
     
     // ペンの色設定
     setColor(0, 0, 0, 0xff);
