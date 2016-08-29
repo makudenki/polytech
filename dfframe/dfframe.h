@@ -7,9 +7,9 @@
 
  @author     Hiroki Takada
 
- @date       2015-05-26
+ @date       2016-03-31
 
- @version    $Id: dfframe.h,v 1.1 2015/08/26 00:47:43 guest Exp $
+ @version    $Id:$
 
   ----------------------------------------------------------------------------
   RELEASE NOTE :
@@ -17,6 +17,7 @@
    DATE          REV    REMARK
   ============= ====== =======================================================
   26th May 2015  0.1   Initial release
+  30th Mar 2016  0.2   Add network interfaces
 
  *****************************************************************************/
 
@@ -90,18 +91,19 @@ typedef enum {
     ERROR
 } TouchState;
 
+typedef struct server {
+    struct sockaddr_in      addr;
+    struct sockaddr_in      sender;
+    int                     sfd;
+    int                     backlog;
+} server_t;
+
 typedef struct connection {
     struct sockaddr_in      addr;
     int                     sfd;
 } connection_t;
 
-
-typedef struct server {
-    struct sockaddr_in      addr;
-    int                     sfd;
-    int                     backlog;
-} server_t;
-
+typedef struct connection udpsocket_t;
 
 /* ------------------------------------------------------------------------- */
 
@@ -180,15 +182,22 @@ void playMusic               (const char * path, bool back);
 int  isPlaying               (void);
 void stopMusic               (void);
 
+// TCP server and connection
 server_t     * startServer   (int port, int backlog);
 connection_t * waitClient    (server_t * server);
 connection_t * connectServer (const char * ipaddr, int port);
 int  sendData                (connection_t * conn, const char * data,   int size);
 int  recvData                (connection_t * conn, char       * buffer, int max );
+
+// UDP server and socket
+server_t    *  udpServer     (int port);
+udpsocket_t *  udpSocket     (const char   * ipaddr, int port);
+int            sendDataTo    (udpsocket_t  * usck, const char * data,   int size);
+int            recvDataFrom  (server_t     * serv,       char * buffer, int max );
+
+// cleaning up
 void closeServer             (server_t * server);
-void closeConnection         (connection_t * conn  );
-
-
+void closeConnection         (connection_t * conn);
 
 /* ------------------------------------------------------------------------- */
 

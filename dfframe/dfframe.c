@@ -7,9 +7,9 @@
 
  @author     Hiroki Takada
 
- @date       2015-05-26
+ @date       2016-03-31
 
- @version    $Id: dfframe.c,v 1.1 2015/08/26 00:47:43 guest Exp $
+ @version    $Id:$
 
   ----------------------------------------------------------------------------
   RELEASE NOTE :
@@ -17,6 +17,7 @@
    DATE          REV    REMARK
   ============= ====== =======================================================
   26th May 2015  0.1   Initial release
+  30th Mar 2016  0.2   Add network interfaces
 
  *****************************************************************************/
 
@@ -785,9 +786,9 @@ void rectangle (region_t r, bool fill)
 
     // draw rectangle
     if (fill) {
-        DFBCHECK(primary->FillRectangle(primary, 0, 0, r.w, r.h));
+        DFBCHECK(primary->FillRectangle(primary, r.x, r.y, r.w, r.h));
     } else {
-        DFBCHECK(primary->DrawRectangle(primary, 0, 0, r.w, r.h));
+        DFBCHECK(primary->DrawRectangle(primary, r.x, r.y, r.w, r.h));
     }
 
 }
@@ -1367,5 +1368,144 @@ void closeConnection (connection_t * conn)
 }
 
 
+
+/**
+ * Start UDP server connection
+ * @param port port number to listen
+ * @return server on success, NULL on failure
+ */
+server_t * udpServer (int port)
+{
+
+    int                     rtn;
+    int                     sfd;
+    struct sockaddr_in      addr;
+
+    // open socket
+    sfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sfd == -1) {
+        return NULL;
+    }
+
+    // set socket option
+    int opt = 1;
+    rtn = setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    if (rtn == -1) {
+        return NULL;
+    }
+    opt = 1;
+    rtn = setsockopt(sfd, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
+    if (rtn == -1) {
+        return NULL;
+    }
+
+    // bind
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family      = AF_INET;
+    addr.sin_port        = htons((short)port);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    rtn = bind(sfd, (struct sockaddr *)&addr, sizeof(addr));
+    if (rtn == -1) {
+        return NULL;
+    }
+
+    server_t * serv = malloc(sizeof(server_t));
+    if (serv == NULL) {
+        return NULL;
+    }
+
+    serv->addr    = addr;
+    serv->sfd     = sfd;
+    serv->backlog = 0;
+
+    return serv;
+
+}
+
+
+
+/**
+ * Open UDP socket and prepare
+ * @param ipaddr ipaddr to send in string
+ * @param port   port to send
+ * @return UDP socket on success, NULL on failure
+ */
+udpsocket_t * udpSocket (const char * ipaddr, int port)
+{
+
+    int                     rtn;
+    int                     sfd;
+    struct sockaddr_in      addr;
+    udpsocket_t *           usock;
+
+    // open socket
+    sfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sfd == -1) {
+        return NULL;
+    }
+
+    // set socket option
+    int opt = 1;
+    rtn = setsockopt(sfd, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt));
+    if (rtn == -1) {
+        return NULL;
+    }
+
+    // prepare the destination address
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port   = htons((short)port);
+    rtn = inet_aton(ipaddr, &addr.sin_addr);
+    if (rtn == 0) {
+        return NULL;
+    }
+
+    usock = (udpsocket_t *) malloc(sizeof(udpsocket_t));
+    if (usock == NULL) {
+        return NULL;
+    }
+
+    usock->addr   = addr;
+    usock->sfd    = sfd;
+
+    return usock;
+
+}
+
+
+
+/**
+ * Send UDP datagram
+ * @param usock UDP socket
+ * @param data  data to send
+ * @param size  sending size
+ * @return sent bytes on success, -1 on failure
+ */
+int sendDataTo (udpsocket_t * usock, const char * data, int size)
+{
+
+    return sendto(usock->sfd, data, size, 0,
+                (struct sockaddr *)&usock->addr, sizeof(struct sockaddr_in));
+
+}
+
+
+/**
+ * Receive UDP datagram
+ * @param serv   receiving UDP server
+ * @param buffer buffer to store the received data
+ * @param max    buffer size
+ * @return received bytes on success, -1 on failure
+ */
+int recvDataFrom (server_t * serv, char * buffer, int max)
+{
+
+    socklen_t               len = sizeof(struct sockaddr_in);
+
+    memset(&serv->sender, 0, len);
+    return recvfrom(serv->sfd, buffer, max, 0,
+                (struct sockaddr *)&serv->sender, &len);
+
+}
 
 
